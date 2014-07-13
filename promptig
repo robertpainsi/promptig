@@ -1,0 +1,124 @@
+#!/usr/bin/perl
+# The MIT License (MIT)
+#
+# Copyright (c) 2016 Robert Painsi
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the 'Software'), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED 'AS IS', WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# Promptig - decorate your prompt with git
+# https://github.com/robertpainsi/promptig
+
+# Color codes are terminal dependent. http://www.arwin.net/tech/bash.php#s_1
+# Show or change color palette Edit → Profile Preferences → Colors → Palette
+my $ColorReset = '\[\e[0m\]';
+
+my $Black = '\[\e[0;30m\]';
+my $Red = '\[\e[0;31m\]';
+my $Green = '\[\e[0;32m\]';
+my $Yellow = '\[\e[0;33m\]';
+my $Blue = '\[\e[0;34m\]';
+my $Magenta = '\[\e[0;35m\]';
+my $Cyan = '\[\e[0;36m\]';
+my $White = '\[\e[0;37m\]';
+
+# Prompt colors
+my $InputColor = $ColorReset;
+my $PromptColor = $Cyan;
+
+# git state colors
+my $NothingToCommitColor = $Green;
+
+my $ChangesNotStagedColor = $Red;
+my $ChangesToCommitColor = $Red;
+my $MergeConflictsColor = $Red;
+
+my $CherryPickingColor = $Blue;
+my $RebasingColor = $Blue;
+my $HeadDetachedFromColor = $Blue;
+
+my $UntrackedFilesColor = $Yellow;
+
+# git state symbols
+my $BranchAheadSymbol = '↑';
+my $BranchBehindSymbol = '↓';
+
+my $MergeConflictsSymbol = '⚡';
+
+my $ChangesNotStagedSymbol = '*';
+my $UntrackedFilesSymbol = '+';
+
+sub Git {
+  $GitStatus = `LANG=en git status --long 2>/dev/null`;
+  if ($GitStatus) {
+    if (index($GitStatus, 'You are currently rebasing branch') != -1) {
+      $GitColor = $RebasingColor;
+    } elsif (index($GitStatus, 'You are currently cherry-picking commit') != -1) {
+      $GitColor = $CherryPickingColor;
+    } elsif (index($GitStatus, 'HEAD detached from') != -1) {
+      $GitColor = $HeadDetachedFromColor;
+    } elsif (index($GitStatus, 'nothing to commit') != -1) {
+      $GitColor = $NothingToCommitColor;
+    } elsif (index($GitStatus, 'Unmerged paths:') != -1) {
+      $GitColor = $MergeConflictsColor;
+    } elsif (index($GitStatus, 'Changes to be committed:') != -1) {
+      $GitColor = $ChangesToCommitColor;
+    } elsif (index($GitStatus, 'Changes not staged for commit:') != -1) {
+      $GitColor = $ChangesNotStagedColor;
+    } elsif (index($GitStatus, 'Untracked files:') != -1) {
+      $GitColor = $UntrackedFilesColor;
+    }
+
+    if ($GitStatus =~ /rebase in progress; onto ([^\s]*)/) {
+      $BranchName = $1;
+    } elsif ($GitStatus =~ /On branch ([^\s]*)/) {
+      $BranchName = $1;
+    } elsif ($GitStatus =~ /HEAD detached (at|from) ([^\s]*)/) {
+      $BranchName = $2;
+    }
+
+    if ($GitStatus =~ /and have (\d+) and (\d+) different commit/) {
+      $CommitsAhead = $BranchAheadSymbol.$1;
+      $CommitsBehind = $BranchBehindSymbol.$2;
+    } elsif ($GitStatus =~ /Your branch is behind (of )?.* by (\d+) commit/) {
+      $CommitsBehind = $BranchBehindSymbol.$2;
+    } elsif ($GitStatus =~ /Your branch is ahead (of )?.* by (\d+) commit/) {
+      $CommitsAhead = $BranchAheadSymbol.$2;
+    }
+
+    if (index($GitStatus, 'Unmerged paths:') != -1) {
+      $GitStatusPorcelain = `LANG=en git status --porcelain 2>/dev/null`;
+      $MergeConflictsCount = () = $GitStatusPorcelain =~ /^(AA|DD|U.|.U)/gm;
+      $MergeConflicts = $MergeConflictsSymbol.$MergeConflictsCount;
+    }
+
+    if (`LANG=en git ls-files --modified 2>/dev/null`) {
+      $GitUnstagedText = $ChangesNotStagedColor.$ChangesNotStagedSymbol;
+    } elsif (`LANG=en git ls-files --others --exclude-standard 2>/dev/null`) {
+      $GitUnstagedText = $UntrackedFilesColor.$UntrackedFilesSymbol;
+    }
+
+    if ($CommitsAhead || $CommitsBehind || $MergeConflicts) {
+      $BranchState = ' '.$MergeConflicts.$CommitsAhead.$CommitsBehind;
+    }
+
+    return $GitColor.' ['.$BranchName.$BranchState.']'.$GitUnstagedText;
+  }
+}
+
+print $PromptColor.'\w'.Git().$PromptColor.'$ '.$InputColor;
