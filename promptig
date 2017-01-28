@@ -63,6 +63,8 @@ my $MergeConflictsSymbol = '⚡';
 my $ChangesNotStagedSymbol = '*';
 my $UntrackedFilesSymbol = '+';
 
+my $DetachedFromSymbol = '|';
+
 sub Git {
   $GitStatus = `LANG=en git status --long 2>/dev/null`;
   if ($GitStatus) {
@@ -88,8 +90,11 @@ sub Git {
       $BranchName = $1;
     } elsif ($GitStatus =~ /On branch ([^\s]*)/) {
       $BranchName = $1;
-    } elsif ($GitStatus =~ /HEAD detached (at|from) ([^\s]*)/) {
-      $BranchName = $2;
+    } elsif ($GitStatus =~ /HEAD detached at ([^\s]*)/) {
+      $BranchName = $1;
+    } elsif ($GitStatus =~ /HEAD detached from ([^\s]*)/) {
+      chomp ($BranchName = `LANG=en git rev-parse --short HEAD 2>/dev/null`);
+      $BranchName = $BranchName.$DetachedFromSymbol.$1;
     }
 
     if ($GitStatus =~ /and have (\d+) and (\d+) different commit/) {
