@@ -126,4 +126,8 @@ sub Git {
   }
 }
 
+# Add user and hostname to prompt, useful for servers.
+#print $Yellow.'\u'.$Blue.'@\h:'.$PromptColor.'\w'.Git().$PromptColor.'$ '.$InputColor;
+
+# Compact useful for local machine.
 print $PromptColor.'\w'.Git().$PromptColor.'$ '.$InputColor;
